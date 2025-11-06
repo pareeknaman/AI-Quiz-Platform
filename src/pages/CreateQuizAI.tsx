@@ -33,6 +33,20 @@ type GeneratedQuiz = {
   questions: GeneratedQuestion[]
 }
 
+async function generateQuiz(prompt: string, system: string) {
+  const res = await fetch('/api/generate-quiz', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userPrompt: prompt, systemPrompt: system })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'API error' }));
+    throw new Error(err.error || 'API error');
+  }
+  const data = await res.json();
+  return data.text as string;
+}
+
 const parseAIResponse = (responseText: string): GeneratedQuiz | null => {
   try {
     const cleanedText = responseText
@@ -91,21 +105,7 @@ const CreateQuizAI = () => {
         : `Generate a ${numQuestions}-question quiz on the topic of: ${topic}`
 
       // 2. Call OUR OWN backend API, not Google's
-      const response = await fetch('/api/generate-quiz', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ systemPrompt, userPrompt }),
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to generate quiz');
-      }
-
-      const data = await response.json();
-      const responseText = data.text;
+      const responseText = await generateQuiz(userPrompt, systemPrompt);
 
       // 3. Parse the Response
       const parsedQuiz = parseAIResponse(responseText)

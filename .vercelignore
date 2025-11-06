@@ -1,0 +1,7 @@
+cypress/
+*.mp4
+*.png
+*.mov
+*.zip
+.DS_Store
+
