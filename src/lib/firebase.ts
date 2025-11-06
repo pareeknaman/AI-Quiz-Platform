@@ -6,13 +6,15 @@ import { getFirestore } from 'firebase/firestore';
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-let firebaseConfig;
-try {
-  firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : (import.meta.env.VITE_FIREBASE_CONFIG || '{}'));
-} catch (e) {
-  console.error("Failed to parse Firebase config", e);
-  firebaseConfig = {};
-}
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+};
 
 if (!firebaseConfig.apiKey) {
   console.warn("Firebase config is missing. Please check .env or environment variables.");
