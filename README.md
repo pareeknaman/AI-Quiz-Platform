@@ -302,6 +302,35 @@ graph TD
     A4 -- "Save Quiz" --> D2
     A4 -- "Quiz Ready Notification" --> User
 ```
+##  Use Case Diagram – AI Quiz Platform
+
+```mermaid
+graph TD
+    %% Actor
+    User([User])
+
+    %% Use Cases
+    UC1((Manage Account))
+    UC2((Create Manual Quiz))
+    UC3((Generate AI Quiz))
+    UC4((Take Quiz))
+    UC5((Set Optional Timer))
+    UC6((View Score & Results))
+    UC7((Manage Dashboard))
+
+    %% Connections
+    User -- "signs up / logs in" --> UC1
+    User -- "accesses" --> UC7
+    User -- "creates" --> UC2
+    User -- "creates" --> UC3
+    User -- "takes" --> UC4
+    User -- "views" --> UC6
+
+    %% Relationships
+    UC2 -. "extends" .-> UC5
+    UC3 -. "extends" .-> UC5
+    UC4 -. "includes" .-> UC6
+```
 
     P4 -- "Final Score" --> User
 ```
