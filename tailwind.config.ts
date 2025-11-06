@@ -1,10 +1,14 @@
 import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
-import tailwindcssAspectRatio from "@tailwindcss/aspect-ratio";
 
 export default {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: [
+    './pages/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './app/**/*.{ts,tsx}',
+    './src/**/*.{ts,tsx}',
+  ],
   prefix: "",
   theme: {
     container: {
@@ -15,7 +19,17 @@ export default {
       },
     },
     extend: {
+      // --- START: OUR THEME ---
       colors: {
+        // A very dark, almost black background
+        'background-dark': '#0a0a0a',
+        // A "faded golden" color
+        'golden': {
+          DEFAULT: '#B8860B', // DarkGoldenRod (for buttons, borders)
+          'light': '#D4AF37',   // A slightly brighter, more "gold" accent
+          'text': '#E6D1A1'    // A light, faded gold for text
+        },
+        // Shadcn UI colors - we can map our theme to them
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -49,17 +63,12 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        sidebar: {
-          DEFAULT: "hsl(var(--sidebar-background))",
-          foreground: "hsl(var(--sidebar-foreground))",
-          primary: "hsl(var(--sidebar-primary))",
-          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
-          accent: "hsl(var(--sidebar-accent))",
-          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
-          border: "hsl(var(--sidebar-border))",
-          ring: "hsl(var(--sidebar-ring))",
-        },
       },
+      backgroundImage: {
+        // The subtle diamond/cross-hatch pattern
+        'line-pattern': "repeating-linear-gradient(45deg, rgba(184, 134, 11, 0.1) 0, rgba(184, 134, 11, 0.1) 1px, transparent 1px, transparent 30px), repeating-linear-gradient(-45deg, rgba(184, 134, 11, 0.1) 0, rgba(184, 134, 11, 0.1) 1px, transparent 1px, transparent 30px)"
+      },
+      // --- END: OUR THEME ---
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
@@ -67,20 +76,12 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {
@@ -89,5 +90,5 @@ export default {
       },
     },
   },
-  plugins: [tailwindcssAnimate, tailwindcssAspectRatio],
+  plugins: [tailwindcssAnimate],
 } satisfies Config;

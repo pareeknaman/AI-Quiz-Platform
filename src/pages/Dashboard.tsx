@@ -1,166 +1,194 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Plus, BookOpen, Users, TrendingUp, Edit, Trash2 } from 'lucide-react';
-import { getCurrentUser, logout } from '@/lib/auth';
-import { getQuizzes, deleteQuiz, type Quiz } from '@/lib/storage';
-import Navbar from '@/components/Navbar';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Link } from 'react-router-dom';
+import { BrainCircuit, PenSquare, Loader2, Info } from 'lucide-react'; 
+import { useUser } from '@clerk/clerk-react';
+import { db, appId } from '@/lib/firebase';
+// Import 'doc' and 'deleteDoc' from Firestore
+import { collection, query, onSnapshot, DocumentData, doc, deleteDoc } from 'firebase/firestore'; 
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
-export default function Dashboard() {
-  const navigate = useNavigate();
-  const [user, setUser] = useState(getCurrentUser());
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+// Define the shape of our quiz data from Firestore
+type Quiz = {
+  id: string;
+  title: string;
+  questionsCount: number;
+  createdAt: Date; 
+};
 
+const Dashboard = () => {
+  const { user } = useUser();
+  const [quizzes, setQuizzes] = useState<Quiz[] | null>(null); // null = loading
+
+  // This useEffect sets up a REAL-TIME listener for quizzes.
   useEffect(() => {
+    if (!user) return; // Wait for the user to be loaded
+
+    const collectionPath = collection(db, "artifacts", appId, "users", user.id, "quizzes");
+    const q = query(collectionPath); 
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const quizzesList: Quiz[] = [];
+      querySnapshot.forEach((doc: DocumentData) => {
+        quizzesList.push({
+          id: doc.id,
+          title: doc.data().title,
+          questionsCount: doc.data().questionsCount,
+          createdAt: doc.data().createdAt.toDate(), // Convert Firestore Timestamp to JS Date
+        });
+      });
+      
+      // Sort manually in JavaScript, which is safer
+      quizzesList.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      
+      setQuizzes(quizzesList);
+    }, (error) => {
+      console.error("Error fetching quizzes:", error);
+      toast.error("Failed to load your quizzes.");
+    });
+
+    // Cleanup: This stops listening when the component unmounts
+    return () => unsubscribe();
+    
+  }, [user]); // Re-run this effect if the user changes
+
+  // --- NEW: Delete Function ---
+  const handleDeleteQuiz = async (quizId: string) => {
+    // We won't add a confirmation modal for simplicity, but you could add one here.
+    // e.g., if (window.confirm("Are you sure you want to delete this quiz?")) { ... }
+    // NOTE: We avoid window.confirm as it's blocked. A custom modal would be needed.
+
     if (!user) {
-      navigate('/login');
+      toast.error("You must be logged in to delete a quiz.");
       return;
     }
+
+    const docPath = doc(db, "artifacts", appId, "users", user.id, "quizzes", quizId);
     
-    // Load user's quizzes
-    const userQuizzes = getQuizzes().filter(quiz => quiz.creatorId === user.id);
-    setQuizzes(userQuizzes);
-  }, [user, navigate]);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+    try {
+      await deleteDoc(docPath);
+      toast.success("Quiz deleted successfully!");
+    } catch (error: any) {
+      console.error("Error deleting quiz:", error);
+      toast.error("Failed to delete quiz", {
+        description: error.message,
+      });
+    }
   };
 
-  const handleDeleteQuiz = (quizId: string) => {
-    deleteQuiz(quizId);
-    const userQuizzes = getQuizzes().filter(quiz => quiz.creatorId === user?.id);
-    setQuizzes(userQuizzes);
+  // Helper function to render the list of quizzes
+  const renderQuizList = () => {
+    // State 1: Loading
+    if (quizzes === null) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 py-16 text-muted-foreground">
+          <Loader2 className="w-10 h-10 animate-spin text-golden-light" />
+          <p>Loading your quizzes...</p>
+        </div>
+      );
+    }
+
+    // State 2: Empty
+    if (quizzes.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 py-16 text-muted-foreground">
+          <Info className="w-10 h-10 text-golden-light" />
+          <p>You haven't created any quizzes yet.</p>
+          <Button asChild>
+            <Link to="/create-manual">Create your first quiz!</Link>
+          </Button>
+        </div>
+      );
+    }
+
+    // State 3: Quizzes available
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {quizzes.map((quiz) => (
+          <Card key={quiz.id} className="bg-card/60 backdrop-blur-md border-golden/30 shadow-xl flex flex-col">
+            <CardHeader>
+              <CardTitle className="text-golden-light">{quiz.title}</CardTitle>
+              <CardDescription>{quiz.questionsCount} Questions</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-grow">
+              <p className="text-sm text-muted-foreground">
+                Your custom-built quiz.
+              </p>
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              
+              {/* --- THIS IS THE CHANGE --- */}
+              <Button 
+                variant="destructive"
+                onClick={() => handleDeleteQuiz(quiz.id)}
+              >
+                Delete
+              </Button>
+              <Button asChild>
+                <Link to={`/quiz/${quiz.id}`}>Start Quiz</Link>
+              </Button>
+              
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+    );
   };
-
-  if (!user) return null;
-
-  const totalQuestions = quizzes.reduce((sum, quiz) => sum + quiz.questions.length, 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome back, {user.name}!
-          </h1>
-          <p className="text-gray-600">Manage your quizzes and track your progress</p>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Quizzes</CardTitle>
-              <BookOpen className="h-4 w-4 text-muted-foreground" />
+    <div className="space-y-12">
+      {/* Section 1: Creation Options (Same as before) */}
+      <div>
+        <h2 className="text-3xl font-bold text-white mb-6">Start Creating</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="bg-card/60 backdrop-blur-md border-golden/30 shadow-xl transition-all duration-300 hover:border-golden-light/50">
+            <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
+              <BrainCircuit className="w-10 h-10 text-golden-light" />
+              <CardTitle className="text-2xl font-semibold text-golden-light">
+                Create with AI
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{quizzes.length}</div>
-              <p className="text-xs text-muted-foreground">
-                {quizzes.length > 0 ? '+1 from last week' : 'Create your first quiz'}
+              <p className="text-muted-foreground">
+                Let our AI generate a quiz for you based on a topic or your pasted text.
               </p>
             </CardContent>
+            <CardFooter>
+              <Button asChild className="w-full">
+                <Link to="/create-quiz">Generate AI Quiz</Link>
+              </Button>
+            </CardFooter>
           </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Questions</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+          <Card className="bg-card/60 backdrop-blur-md border-golden/30 shadow-xl transition-all duration-300 hover:border-golden-light/50">
+            <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
+              <PenSquare className="w-10 h-10 text-golden-light" />
+              <CardTitle className="text-2xl font-semibold text-golden-light">
+                Create Manually
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalQuestions}</div>
-              <p className="text-xs text-muted-foreground">
-                Across all your quizzes
+              <p className="text-muted-foreground">
+                Build a custom quiz from scratch. Add questions, options, and set a timer.
               </p>
             </CardContent>
+            <CardFooter>
+              <Button asChild className="w-full">
+                <Link to="/create-manual">Build Manual Quiz</Link>
+              </Button>
+            </CardFooter>
           </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg. Quiz Length</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {quizzes.length > 0 ? Math.round(totalQuestions / quizzes.length) : 0}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Questions per quiz
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-          <div className="flex gap-4">
-            <Button onClick={() => navigate('/create-quiz')} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Create New Quiz
-            </Button>
-          </div>
-        </div>
-
-        {/* Quizzes List */}
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Your Quizzes</h2>
-          {quizzes.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-8">
-                <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No quizzes yet</h3>
-                <p className="text-gray-600 mb-4">Create your first quiz to get started</p>
-                <Button onClick={() => navigate('/create-quiz')}>
-                  Create Quiz
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {quizzes.map((quiz) => (
-                <Card key={quiz.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-lg">{quiz.title}</CardTitle>
-                        <CardDescription className="mt-1">
-                          {quiz.description}
-                        </CardDescription>
-                      </div>
-                      <Badge variant="secondary">
-                        {quiz.questions.length} questions
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-between items-center">
-                      <div className="text-sm text-gray-600">
-                        Created: {new Date(quiz.createdAt).toLocaleDateString()}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => handleDeleteQuiz(quiz.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
         </div>
       </div>
+
+      {/* --- THIS IS THE CHANGE --- */}
+      <div>
+        <h2 className="text-3xl font-bold text-white mb-6">Saved Quizzes</h2>
+        {renderQuizList()}
+      </div>
+      
     </div>
   );
-}
+};
+
+export default Dashboard;

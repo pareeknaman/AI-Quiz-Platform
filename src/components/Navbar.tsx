@@ -1,71 +1,40 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { getAuthState, logout } from '@/lib/auth';
-import { useState, useEffect } from 'react';
+import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
 
-export default function Navbar() {
-  const [authState, setAuthState] = useState(getAuthState());
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setAuthState(getAuthState());
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    // Also listen for custom auth events
-    window.addEventListener('authStateChanged', handleStorageChange);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('authStateChanged', handleStorageChange);
-    };
-  }, []);
-
-  const handleLogout = () => {
-    logout();
-    setAuthState({ user: null, isAuthenticated: false });
-    window.dispatchEvent(new Event('authStateChanged'));
-    navigate('/');
-  };
-
+const Navbar = () => {
   return (
-    <nav className="bg-white shadow-sm border-b">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center">
-            <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">Q</span>
-              </div>
-              <span className="text-xl font-bold text-gray-900">QuizMaster AI</span>
-            </Link>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            {authState.isAuthenticated ? (
-              <>
-                <span className="text-gray-700">Welcome, {authState.user?.name}</span>
-                <Link to="/dashboard">
-                  <Button variant="ghost">Dashboard</Button>
-                </Link>
-                <Button variant="outline" onClick={handleLogout}>
-                  Logout
-                </Button>
-              </>
-            ) : (
-              <>
-                <Link to="/login">
-                  <Button variant="ghost">Login</Button>
-                </Link>
-                <Link to="/signup">
-                  <Button>Sign Up</Button>
-                </Link>
-              </>
-            )}
-          </div>
+    <nav className="bg-background/80 backdrop-blur-sm border-b border-golden/30 sticky top-0 z-50">
+      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+        <Link to="/" className="text-xl font-bold text-golden-light">
+          AI Quiz Platform
+        </Link>
+        <div>
+          {/* Show profile button if logged in */}
+          <SignedIn>
+            <div className="flex items-center gap-4">
+              <Button asChild>
+                <Link to="/dashboard">Dashboard</Link>
+              </Button>
+              <UserButton afterSignOutUrl="/" />
+            </div>
+          </SignedIn>
+          
+          {/* Show Log In/Sign Up if logged out */}
+          <SignedOut>
+            <div className="space-x-2">
+              <Button variant="ghost" asChild>
+                <Link to="/login">Log In</Link>
+              </Button>
+              <Button variant="default" asChild>
+                <Link to="/signup">Sign Up</Link>
+              </Button>
+            </div>
+          </SignedOut>
         </div>
       </div>
     </nav>
   );
-}
+};
+
+export default Navbar;
