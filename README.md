@@ -40,3 +40,166 @@ classDiagram
     Quiz "1" -- "1..*" Question : contains
     Quiz "1" -- "0..*" QuizAttempt : is taken in
     Question "1" -- "2..*" Option : has
+```
+
+
+##  Sequence Diagram: User Sign Up
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Frontend as "Browser (UI)"
+    participant Backend as "Server (API)"
+    participant DB as "Database"
+
+    User ->> Frontend: Fill in email, password, name
+    activate Frontend
+    Frontend ->> Backend: POST /api/register (email, password, name)
+    activate Backend
+    Backend ->> Backend: Hash password
+    Backend ->> DB: saveUser(email, passwordHash, name)
+    activate DB
+
+    alt Email already exists
+        DB -->> Backend: Error - Email taken
+        Backend -->> Frontend: 409 Conflict (User already exists)
+    else New user created
+        DB -->> Backend: newUserId
+        Backend -->> Frontend: 201 Created (Auth Token)
+    end
+
+    deactivate DB
+    deactivate Backend
+    Frontend ->> User: Redirect to dashboard / show logged-in view
+    deactivate Frontend
+```
+
+---
+
+##  Sequence Diagram: User Sign In
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Frontend as "Browser (UI)"
+    participant Backend as "Server (API)"
+    participant DB as "Database"
+
+    User ->> Frontend: Fill in email & password
+    activate Frontend
+    Frontend ->> Backend: POST /api/login (email, password)
+    activate Backend
+    Backend ->> DB: findUserByEmail(email)
+    activate DB
+
+    alt User not found
+        DB -->> Backend: null
+        Backend -->> Frontend: 401 Unauthorized (Invalid credentials)
+    else User found
+        DB -->> Backend: userRecord (with hashedPassword)
+        Backend ->> Backend: Compare input password with hashedPassword
+
+        alt Passwords do not match
+            Backend -->> Frontend: 401 Unauthorized (Invalid credentials)
+        else Passwords match
+            Backend -->> Frontend: 200 OK (Auth Token)
+        end
+    end
+
+    deactivate DB
+    deactivate Backend
+    Frontend ->> User: Logs user in / Redirects to dashboard
+    deactivate Frontend
+```
+
+---
+
+## Sequence Diagram: Create AI Quiz
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Frontend as "Browser (UI)"
+    participant Backend as "Server (API)"
+    participant AIGenerator as "AI Service"
+    participant DB as "Database"
+
+    User ->> Frontend: Fill in 'Topic' & clicks 'Generate'
+    activate Frontend
+    Frontend ->> Backend: POST /api/quiz (topic)
+    activate Backend
+    Backend ->> AIGenerator: generateQuestions(topic)
+    activate AIGenerator
+    AIGenerator -->> Backend: [questionData]
+    deactivate AIGenerator
+    Backend ->> DB: saveQuiz(topic, questionData)
+    activate DB
+    DB -->> Backend: {newQuizId}
+    deactivate DB
+    Backend -->> Frontend: 201 Created (quizId)
+    deactivate Backend
+    Frontend ->> User: Redirects to new quiz page
+    deactivate Frontend
+```
+
+---
+
+##  Sequence Diagram: Submit Quiz & See Score
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Frontend as "Browser (UI)"
+    participant Backend as "Server (API)"
+    participant DB as "Database"
+
+    User ->> Frontend: Clicks "Submit Quiz"
+    activate Frontend
+    Frontend ->> Backend: POST /api/submit (quizId, answersMap)
+    activate Backend
+    Backend ->> DB: GetCorrectAnswers(quizId)
+    activate DB
+    DB -->> Backend: [correctAnswers]
+    deactivate DB
+    Backend ->> Backend: Calculate score (compare answersMap vs correctAnswers)
+    Backend ->> DB: saveQuizAttempt(userId, quizId, score)
+    activate DB
+    DB -->> Backend: {newAttemptId}
+    deactivate DB
+    Backend -->> Frontend: 200 OK (finalScore)
+    deactivate Backend
+    Frontend ->> User: Displays "Your score is: 8/10"
+    deactivate Frontend
+```
+
+---
+
+## Activity Diagram: Create AI Quiz
+
+```mermaid
+flowchart TD
+    subgraph User
+        A((Start)) --> B[Clicks 'Create New Quiz']
+        B --> C[Selects 'Create with AI']
+        C --> D[Enters topic and clicks 'Generate']
+        K[Display error message] --> M((End))
+        P[Review generated quiz] --> Q[Clicks 'Save']
+        Q --> R((End))
+    end
+
+    subgraph Platform
+        D --> E{Is topic valid?}
+        E -- No --> K
+        E -- Yes --> F[Format prompt for AI]
+        F --> G[Send prompt to AI API]
+        J[Receive quiz data] --> N{Is data valid?}
+        N -- No --> K
+        N -- Yes --> O[Save quiz to database]
+        O --> P
+    end
+
+    subgraph AI_Service
+        G --> H[Process prompt & generate quiz]
+        H --> J
+    end
+```
