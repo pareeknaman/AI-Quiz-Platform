@@ -268,5 +268,40 @@ graph TD
     P3 -- "Evaluate Answers" --> P4
 
     %% Viewing Score
+```
+## DFD (Level 2)
+
+```mermaid
+graph TD
+    %% External Entities
+    User([User])
+    AI_API([AI Service])
+
+    %% Data Store
+    D2[(Quiz Database)]
+
+    %% Main Process
+    subgraph P3["P3: Generate AI Quiz"]
+        A1["Validate Topic"]
+        A2["Send Topic to AI Service"]
+        A3["Receive & Check Quiz Data"]
+        A4["Save Quiz to Database"]
+    end
+
+    %% Data Flows
+    User -- "Enter Topic" --> A1
+    A1 -- "Valid Topic" --> A2
+    A1 -- "Invalid Topic (Error)" --> User
+
+    A2 -- "Topic Request" --> AI_API
+    AI_API -- "Generated Questions" --> A3
+
+    A3 -- "Valid Quiz" --> A4
+    A3 -- "Error Message" --> User
+
+    A4 -- "Save Quiz" --> D2
+    A4 -- "Quiz Ready Notification" --> User
+```
+
     P4 -- "Final Score" --> User
 ```
