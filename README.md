@@ -228,3 +228,45 @@ graph TD
     P0 -- "Formatted Topic Prompt" --> AI_API
     AI_API -- "Generated Questions" --> P0
 ```
+
+##  Data Flow Diagram (Level 1)
+
+```mermaid
+graph TD
+    %% External Entities
+    User([User])
+    AI_API([AI Service])
+
+    %% System as a single unit
+    subgraph Quiz_Platform
+        P1["P1: User Management"]
+        P2["P2: Create Quiz"]
+        P3["P3: Take Quiz"]
+        P4["P4: View Score"]
+    end
+
+    %% Data Stores
+    D1[(User Database)]
+    D2[(Quiz Database)]
+
+    %% User Management
+    User -- "Sign Up / Sign In Info" --> P1
+    P1 -- "Login Confirmation" --> User
+    P1 -- "User Data" --> D1
+    D1 -- "User Record" --> P1
+
+    %% Quiz Creation
+    User -- "Enter Topic / Create Quiz" --> P2
+    P2 -- "Send Request" --> AI_API
+    AI_API -- "Generated Questions" --> P2
+    P2 -- "Save Quiz" --> D2
+    P2 -- "Show Quiz to User" --> User
+
+    %% Taking Quiz
+    User -- "Select Quiz & Submit Answers" --> P3
+    P3 -- "Fetch Quiz Questions" --> D2
+    P3 -- "Evaluate Answers" --> P4
+
+    %% Viewing Score
+    P4 -- "Final Score" --> User
+```
