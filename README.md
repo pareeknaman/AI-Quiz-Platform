@@ -332,5 +332,4 @@ graph TD
     UC4 -. "includes" .-> UC6
 ```
 
-    P4 -- "Final Score" --> User
-```
+
