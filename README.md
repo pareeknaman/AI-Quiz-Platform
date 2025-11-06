@@ -203,3 +203,28 @@ flowchart TD
         H --> J
     end
 ```
+##  Data Flow Diagram (Level 0)
+
+```mermaid
+graph TD
+    %% Define External Entities
+    User([User])
+    AI_API([External AI API])
+
+    %% Define the System as a Single Process
+    subgraph AI_Powered_Quiz_Platform
+        P0["AI Quiz Platform (System)"]
+    end
+
+    %% Define Data Flows
+    User -- "User Credentials & Account Info" --> P0
+    User -- "Manual Quiz Data" --> P0
+    User -- "Quiz Topic Request" --> P0
+    User -- "Submitted Answers" --> P0
+    
+    P0 -- "Quiz Results & Score" --> User
+    P0 -- "User Dashboard Data" --> User
+    
+    P0 -- "Formatted Topic Prompt" --> AI_API
+    AI_API -- "Generated Questions" --> P0
+```
