@@ -12,6 +12,7 @@ import NotFound from './pages/NotFound';
 import { useEffect } from 'react';
 // We no longer import useSyncAuth
 import QuizTaker from './pages/QuizTaker';
+import PastScores from './pages/PastScores';
 
 const queryClient = new QueryClient();
 
@@ -57,18 +58,18 @@ function MainApp() {
       <main className="container mx-auto px-4 py-12">
         <Routes>
           <Route path="/" element={<Home />} />
-          
+
           <Route
             path="/login"
             element={
               <div className="flex justify-center items-center py-12">
-                <SignIn 
-                  routing="path" 
-                  path="/login" 
+                <SignIn
+                  routing="path"
+                  path="/login"
                   appearance={{
                     elements: { card: "bg-card/60 backdrop-blur-md border-golden/30 shadow-xl" }
                   }}
-                  afterSignInUrl="/dashboard" 
+                  afterSignInUrl="/dashboard"
                 />
               </div>
             }
@@ -77,9 +78,9 @@ function MainApp() {
             path="/signup"
             element={
               <div className="flex justify-center items-center py-12">
-                <SignUp 
-                  routing="path" 
-                  path="/signup" 
+                <SignUp
+                  routing="path"
+                  path="/signup"
                   appearance={{
                     elements: { card: "bg-card/60 backdrop-blur-md border-golden/30 shadow-xl" }
                   }}
@@ -122,7 +123,17 @@ function MainApp() {
               </ProtectedRoute>
             }
           />
-          
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <PastScores />
+              </ProtectedRoute>
+            }
+          />
+          {/* Public Share Route - No ProtectedRoute wrapper */}
+          <Route path="/share/:userId/:quizId" element={<QuizTaker />} />
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

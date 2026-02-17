@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
-import { db, appId } from '@/lib/firebase';
+import { db, appId, saveQuizAttempt } from '@/lib/firebase';
+import { toast } from 'sonner';
 import { doc, getDoc } from 'firebase/firestore';
 import { Loader2, Info, Check, X, Clock, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -26,7 +27,7 @@ type Question = {
 };
 
 const QuizTaker = () => {
-  const { quizId } = useParams<{ quizId: string }>();
+  const { quizId, userId: creatorId } = useParams<{ quizId: string; userId?: string }>();
   const { user } = useUser();
   const navigate = useNavigate();
 
@@ -45,11 +46,14 @@ const QuizTaker = () => {
 
   // 1. Fetch the quiz data
   useEffect(() => {
-    if (!user || !quizId) return;
+    // Determine which user ID to fetch from: the creator (from URL) or the logged-in user
+    const targetUserId = creatorId || user?.id;
+
+    if (!targetUserId || !quizId) return;
 
     const fetchQuiz = async () => {
       setLoading(true);
-      const docPath = doc(db, "artifacts", appId, "users", user.id, "quizzes", quizId);
+      const docPath = doc(db, "artifacts", appId, "users", targetUserId, "quizzes", quizId);
       try {
         const docSnap = await getDoc(docPath);
         if (docSnap.exists()) {
@@ -64,7 +68,7 @@ const QuizTaker = () => {
           if (data.timeLimit && data.timeLimit > 0) {
             const initialTime = data.timeLimit * 60; // Convert minutes to seconds
             setTimeRemaining(initialTime);
-            
+
             // Start the timer immediately after setting timeRemaining
             // Use setTimeout to ensure state is set before starting timer
             setTimeout(() => {
@@ -93,7 +97,7 @@ const QuizTaker = () => {
     };
 
     fetchQuiz();
-  }, [quizId, user, appId]);
+  }, [quizId, user, appId, creatorId]);
 
   // Cleanup timer on unmount or when finished
   useEffect(() => {
@@ -120,7 +124,7 @@ const QuizTaker = () => {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
-    
+
     // Calculate score
     let newScore = 0;
     for (let i = 0; i < questions.length; i++) {
@@ -130,7 +134,26 @@ const QuizTaker = () => {
     }
     setScore(newScore);
     setIsFinished(true);
-  }, [selectedAnswers, questions]);
+
+    // Only save if it's NOT a shared quiz (i.e., taking your own quiz)
+    // The user requested: "people can attempt it and... no need to get their scores back just yet"
+    const isShared = !!creatorId;
+
+    if (user && quiz && quizId && !isShared) {
+      saveQuizAttempt(user.id, {
+        quizId,
+        quizTitle: quiz.title,
+        score: newScore,
+        totalQuestions: questions.length,
+        timestamp: new Date(),
+      })
+        .then(() => toast.success("Score saved to history!"))
+        .catch((err) => {
+          console.error("Failed to save attempt:", err);
+          toast.error("Failed to save score. Check console for details.");
+        });
+    }
+  }, [selectedAnswers, questions, user, quiz, quizId, creatorId]);
 
   // 3. Auto-submit when time runs out
   useEffect(() => {
@@ -173,7 +196,7 @@ const QuizTaker = () => {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-16 text-muted-foreground">
         <Loader2 className="w-10 h-10 animate-spin text-golden-light" />
-        <p>Loading your quiz...</p>
+        <p>Loading quiz...</p>
       </div>
     );
   }
@@ -183,7 +206,7 @@ const QuizTaker = () => {
       <div className="flex flex-col items-center justify-center gap-4 py-16 text-red-500">
         <Info className="w-10 h-10" />
         <p>{error}</p>
-        <Button onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>
+        <Button onClick={() => navigate(user ? '/dashboard' : '/')}>Back to Home</Button>
       </div>
     );
   }
@@ -206,8 +229,8 @@ const QuizTaker = () => {
             <p className="text-xl text-muted-foreground">
               You got {((score / questions.length) * 100).toFixed(0)}%
             </p>
-            <Button onClick={() => navigate('/dashboard')} className="w-full">
-              Back to Dashboard
+            <Button onClick={() => navigate(user ? '/dashboard' : '/')} className="w-full">
+              {user ? 'Back to Dashboard' : 'Back to Home'}
             </Button>
           </CardContent>
         </Card>
@@ -218,7 +241,7 @@ const QuizTaker = () => {
   // --- Render Active Quiz State ---
   const currentQuestion = questions[currentQuestionIndex];
   const selectedOption = selectedAnswers[currentQuestionIndex];
-  
+
   // Determine timer color based on remaining time
   const getTimerColor = () => {
     if (timeRemaining === null) return 'text-muted-foreground';
@@ -260,8 +283,8 @@ const QuizTaker = () => {
             <Alert className={`${timeRemaining <= 30 ? 'bg-red-500/10 border-red-500/50' : 'bg-yellow-500/10 border-yellow-500/50'}`}>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-white">
-                {timeRemaining <= 30 
-                  ? `⚠️ Less than 30 seconds remaining!` 
+                {timeRemaining <= 30
+                  ? `⚠️ Less than 30 seconds remaining!`
                   : `⏰ Less than 1 minute remaining!`}
               </AlertDescription>
             </Alert>
@@ -275,7 +298,7 @@ const QuizTaker = () => {
             </Alert>
           )}
           <p className="text-lg text-white font-medium">{currentQuestion.text}</p>
-          
+
           <RadioGroup
             value={selectedOption !== null && selectedOption !== undefined ? selectedOption.toString() : "0"}
             onValueChange={(val) => handleSelectAnswer(parseInt(val))}

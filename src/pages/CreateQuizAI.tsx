@@ -19,7 +19,7 @@ import { db, appId } from "@/lib/firebase"
 import { addDoc, collection } from "firebase/firestore"
 import { toast } from "sonner"
 import { useNavigate } from "react-router-dom"
-// We NO LONGER import @google/generative-ai here
+import { GoogleGenerativeAI } from "@google/generative-ai"; // Re-imported for local fallback
 
 // ... (Type definitions and parseAIResponse are the same)
 type GeneratedQuestion = {
@@ -34,17 +34,38 @@ type GeneratedQuiz = {
 }
 
 async function generateQuiz(prompt: string, system: string) {
-  const res = await fetch('/api/generate-quiz', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userPrompt: prompt, systemPrompt: system })
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'API error' }));
-    throw new Error(err.error || 'API error');
+  try {
+    const res = await fetch('/api/generate-quiz', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userPrompt: prompt, systemPrompt: system })
+    });
+
+    if (!res.ok) {
+      // If API call fails (e.g., 404 or 500), throw to trigger fallback
+      const err = await res.json().catch(() => ({ error: 'API error' }));
+      throw new Error(err.error || `API returned ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data.text as string;
+  } catch (backendError) {
+    console.warn("Backend API failed, trying client-side fallback...", backendError);
+
+    // --- FALLBACK: Client-side generation ---
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('API key is not configured and backend failed.');
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash-preview-09-2025",
+    });
+
+    const result = await model.generateContent([system, prompt]);
+    return result.response.text();
   }
-  const data = await res.json();
-  return data.text as string;
 }
 
 const parseAIResponse = (responseText: string): GeneratedQuiz | null => {
@@ -100,9 +121,10 @@ const CreateQuizAI = () => {
         }
         The "correctAnswerIndex" MUST be a number between 0 and 3.
       `
-      const userPrompt = text.trim() 
-        ? `Generate a ${numQuestions}-question quiz based on the following text: ${text}`
-        : `Generate a ${numQuestions}-question quiz on the topic of: ${topic}`
+      const randomSeed = Math.random().toString(36).substring(7);
+      const userPrompt = text.trim()
+        ? `Generate a ${numQuestions}-question quiz based on the following text: ${text}.\n\nIMPORTANT: Generate a UNIQUE set of questions. (Random Seed: ${randomSeed})`
+        : `Generate a ${numQuestions}-question quiz on the topic of: ${topic}.\n\nIMPORTANT: Generate a UNIQUE set of questions different from any standard set. (Random Seed: ${randomSeed})`;
 
       // 2. Call OUR OWN backend API, not Google's
       const responseText = await generateQuiz(userPrompt, systemPrompt);
@@ -179,9 +201,9 @@ const CreateQuizAI = () => {
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="topic">Quiz Topic</Label>
-            <Input 
-              id="topic" 
-              placeholder="e.g., 'The Solar System' or 'React Hooks'" 
+            <Input
+              id="topic"
+              placeholder="e.g., 'The Solar System' or 'React Hooks'"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               disabled={isLoading || isSaving}
@@ -213,21 +235,21 @@ const CreateQuizAI = () => {
               </p>
             </div>
           </div>
-          
+
           <div className="relative">
-             <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-golden/30" />
-             </div>
-             <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or</span>
-             </div>
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-golden/30" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Or</span>
+            </div>
           </div>
 
-           <div className="space-y-2">
+          <div className="space-y-2">
             <Label htmlFor="manual-text">Paste Text to Generate From</Label>
-            <Textarea 
-              id="manual-text" 
-              placeholder="Paste your article, notes, or text here..." 
+            <Textarea
+              id="manual-text"
+              placeholder="Paste your article, notes, or text here..."
               className="min-h-[150px]"
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -235,9 +257,9 @@ const CreateQuizAI = () => {
             />
           </div>
 
-          <Button 
-            className="w-full" 
-            size="lg" 
+          <Button
+            className="w-full"
+            size="lg"
             onClick={handleGenerateQuiz}
             disabled={isLoading || isSaving}
           >
@@ -259,7 +281,7 @@ const CreateQuizAI = () => {
               <p className="text-2xl text-center font-bold text-golden-light">
                 {generatedQuiz.title}
               </p>
-              
+
               <div className="space-y-6">
                 {generatedQuiz.questions.map((q, qIndex) => (
                   <Card key={qIndex} className="bg-card/80 border-golden/20 p-4">
@@ -277,7 +299,7 @@ const CreateQuizAI = () => {
                               value={oIndex.toString()}
                               id={`q-${qIndex}-o-${oIndex}`}
                             />
-                            <Label 
+                            <Label
                               htmlFor={`q-${qIndex}-o-${oIndex}`}
                               className={q.correctAnswerIndex === oIndex ? 'text-golden-light' : 'text-white'}
                             >

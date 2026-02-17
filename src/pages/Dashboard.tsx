@@ -1,11 +1,11 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import { BrainCircuit, PenSquare, Loader2, Info } from 'lucide-react'; 
+import { BrainCircuit, PenSquare, Loader2, Info, Share2 } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { db, appId } from '@/lib/firebase';
 // Import 'doc' and 'deleteDoc' from Firestore
-import { collection, query, onSnapshot, DocumentData, doc, deleteDoc } from 'firebase/firestore'; 
+import { collection, query, onSnapshot, DocumentData, doc, deleteDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -14,7 +14,7 @@ type Quiz = {
   id: string;
   title: string;
   questionsCount: number;
-  createdAt: Date; 
+  createdAt: Date;
 };
 
 const Dashboard = () => {
@@ -26,7 +26,7 @@ const Dashboard = () => {
     if (!user) return; // Wait for the user to be loaded
 
     const collectionPath = collection(db, "artifacts", appId, "users", user.id, "quizzes");
-    const q = query(collectionPath); 
+    const q = query(collectionPath);
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const quizzesList: Quiz[] = [];
@@ -38,10 +38,10 @@ const Dashboard = () => {
           createdAt: doc.data().createdAt.toDate(), // Convert Firestore Timestamp to JS Date
         });
       });
-      
+
       // Sort manually in JavaScript, which is safer
       quizzesList.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      
+
       setQuizzes(quizzesList);
     }, (error) => {
       console.error("Error fetching quizzes:", error);
@@ -50,7 +50,7 @@ const Dashboard = () => {
 
     // Cleanup: This stops listening when the component unmounts
     return () => unsubscribe();
-    
+
   }, [user]); // Re-run this effect if the user changes
 
   // --- NEW: Delete Function ---
@@ -65,7 +65,7 @@ const Dashboard = () => {
     }
 
     const docPath = doc(db, "artifacts", appId, "users", user.id, "quizzes", quizId);
-    
+
     try {
       await deleteDoc(docPath);
       toast.success("Quiz deleted successfully!");
@@ -75,6 +75,18 @@ const Dashboard = () => {
         description: error.message,
       });
     }
+  };
+
+  const handleShareQuiz = (quizId: string) => {
+    if (!user) return;
+    const shareUrl = `${window.location.origin}/share/${user.id}/${quizId}`;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      toast.success("Link copied to clipboard!", {
+        description: "You can now share this quiz with anyone."
+      });
+    }).catch(() => {
+      toast.error("Failed to copy link.");
+    });
   };
 
   // Helper function to render the list of quizzes
@@ -117,9 +129,9 @@ const Dashboard = () => {
               </p>
             </CardContent>
             <CardFooter className="flex justify-between">
-              
+
               {/* --- THIS IS THE CHANGE --- */}
-              <Button 
+              <Button
                 variant="destructive"
                 onClick={() => handleDeleteQuiz(quiz.id)}
               >
@@ -128,7 +140,15 @@ const Dashboard = () => {
               <Button asChild>
                 <Link to={`/quiz/${quiz.id}`}>Start Quiz</Link>
               </Button>
-              
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleShareQuiz(quiz.id)}
+                title="Share Quiz"
+              >
+                <Share2 className="w-4 h-4" />
+              </Button>
+
             </CardFooter>
           </Card>
         ))}
@@ -186,7 +206,7 @@ const Dashboard = () => {
         <h2 className="text-3xl font-bold text-white mb-6">Saved Quizzes</h2>
         {renderQuizList()}
       </div>
-      
+
     </div>
   );
 };

@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Quizzes: Public Read. Owner Write.
+    // matches "quizzes" collection and any documents inside it
+    match /artifacts/{appId}/users/{userId}/quizzes/{document=**} {
+      allow read: if true; // Guests can read quizzes
+      allow write: if request.auth != null; // Authenticated users can write (create/delete)
+    }
+
+    // 2. Everything else (Attempts, etc.): Owner Access Only
+    match /artifacts/{appId}/users/{userId}/{document=**} {
+      allow read, write: if request.auth != null; // Authenticated users can write
+    }
+    
+    // Default deny for anything not under a user's ID
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

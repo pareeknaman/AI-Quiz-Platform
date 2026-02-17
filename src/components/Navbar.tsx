@@ -13,13 +13,16 @@ const Navbar = () => {
           {/* Show profile button if logged in */}
           <SignedIn>
             <div className="flex items-center gap-4">
+              <Button asChild variant="ghost">
+                <Link to="/history">History</Link>
+              </Button>
               <Button asChild>
                 <Link to="/dashboard">Dashboard</Link>
               </Button>
               <UserButton afterSignOutUrl="/" />
             </div>
           </SignedIn>
-          
+
           {/* Show Log In/Sign Up if logged out */}
           <SignedOut>
             <div className="space-x-2">
