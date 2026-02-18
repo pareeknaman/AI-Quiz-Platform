@@ -60,7 +60,7 @@ function MainApp() {
           <Route path="/" element={<Home />} />
 
           <Route
-            path="/login"
+            path="/login/*"
             element={
               <div className="flex justify-center items-center py-12">
                 <SignIn
@@ -75,7 +75,7 @@ function MainApp() {
             }
           />
           <Route
-            path="/signup"
+            path="/signup/*"
             element={
               <div className="flex justify-center items-center py-12">
                 <SignUp
