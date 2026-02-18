@@ -31,7 +31,7 @@ export default async function handler(
     // 4. Call the Gemini API securely from the server
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash-preview-09-2025",
+      model: "gemini-2.5-flash",
     });
 
     const result = await model.generateContent([systemPrompt, userPrompt]);
